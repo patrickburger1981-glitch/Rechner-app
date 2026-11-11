@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- PWA & Mobile Meta Tags -->
+    <title>Taschenrechner PWA</title>
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="Moderne, offline-fähige Taschenrechner PWA mit konfigurierbarem Logo & Icons">
+    
+    <!-- iOS / Apple WebApp Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Rechner">
+
+    <!-- Dynamischer Apple Touch Icon Link (wird per JS befüllt) -->
+    <link id="apple-touch-icon" rel="apple-touch-icon" href="">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Verhindert unbeabsichtigtes Zoomen auf iOS bei Doppel-Taps */
+        touch-action: manipulation;
+        
+        /* Safe Area Padding für modernste Smartphones */
+        body {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Glasmorphismus und benutzerdefinierte Effekte */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-button {
+            background: rgba(51, 65, 85, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.15s ease-in-out;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-button:hover {
+            background: rgba(71, 85, 105, 0.7);
+            transform: translateY(-1px);
+        }
+        .glass-button:active {
+            transform: translateY(1px);
+            background: rgba(99, 102, 241, 0.3);
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.5);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="h-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 flex items-center justify-center p-2 sm:p-4 select-none font-sans overflow-x-hidden">
+
+    <!-- Hauptcontainer -->
+    <div class="flex flex-col lg:flex-row gap-4 w-full max-w-4xl justify-center items-center lg:items-stretch">
+        
+        <!-- Taschenrechner Modul -->
+        <div class="glass-panel rounded-3xl p-5 sm:p-6 shadow-2xl w-full max-w-md flex flex-col justify-between relative overflow-hidden">
+            
+            <!-- Hintergrund-Leuchteffekt -->
+            <div class="absolute -top-24 -left-24 w-48 h-48 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-pink-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Kopfzeile mit Icon, Customizer & Install-Button -->
+            <div class="flex justify-between items-center mb-4 z-10">
+                <!-- Dynamisches Logo/Icon Header -->
+                <div class="flex items-center gap-2.5">
+                    <div id="app-logo-container" class="w-9 h-9 rounded-xl overflow-hidden bg-indigo-600/30 border border-white/20 flex items-center justify-center shadow-lg transition-transform hover:scale-105 cursor-pointer" onclick="toggleCustomizerModal()" title="Icon anpassen">
+                        <!-- Wird per JS dynamisch mit <img> oder SVG befüllt -->
+                    </div>
+                    <div>
+                        <span id="app-title-display" class="text-xs uppercase tracking-widest text-slate-300 font-semibold block leading-tight">Rechner</span>
+                        <span class="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Offline Bereit
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 items-center">
+                    <!-- Customizer Button -->
+                    <button onclick="toggleCustomizerModal()" class="p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-700/50 text-slate-300 hover:text-white transition" title="Icon / Logo anpassen">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </button>
+
+                    <!-- Dynamic PWA Install Button -->
+                    <button id="pwa-install-btn" class="hidden text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-3 py-1.5 rounded-full shadow-lg shadow-indigo-600/30 transition flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Installieren
+                    </button>
+                    
+                    <button id="history-toggle" class="lg:hidden p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-700/50 text-slate-300 hover:text-white transition" title="Verlauf anzeigen">
+                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Display -->
+            <div class="bg-slate-950/70 rounded-2xl p-4 mb-5 border border-slate-800/80 shadow-inner flex flex-col justify-end items-end min-h-[105px] z-10">
+                <div id="previous-operand" class="text-slate-400 text-sm sm:text-base font-medium tracking-wide h-6 overflow-x-hidden text-right max-w-full"></div>
+                <div id="current-operand" class="text-white text-3xl sm:text-4xl font-bold tracking-tight overflow-x-hidden text-right max-w-full">0</div>
+            </div>
+
+            <!-- Tastatur (Grid) -->
+            <div class="grid grid-cols-4 gap-2.5 sm:gap-3 z-10">
+                <button onclick="clearAll()" class="glass-button text-rose-400 font-semibold py-3.5 sm:py-4 rounded-xl text-lg shadow-md active:bg-rose-500/20">AC</button>
+                <button onclick="deleteDigit()" class="glass-button text-amber-400 font-semibold py-3.5 sm:py-4 rounded-xl text-lg shadow-md flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414-6.414a2 2 0 011.414-.586H19a2 2 0 012 2v12a2 2 0 01-2 2h-8.172a2 2 0 01-1.414-.586L3 12z"></path></svg>
+                </button>
+                <button onclick="appendPercent()" class="glass-button text-indigo-400 font-semibold py-3.5 sm:py-4 rounded-xl text-lg shadow-md">%</button>
+                <button onclick="appendOperation('/')" class="glass-button text-indigo-400 font-semibold py-3.5 sm:py-4 rounded-xl text-lg shadow-md bg-indigo-950/40 hover:bg-indigo-900/50">÷</button>
+
+                <button onclick="appendNumber('7')" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">7</button>
+                <button onclick="appendNumber('8')" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">8</button>
+                <button onclick="appendNumber('9')" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">9</button>
+                <button onclick="appendOperation('*')" class="glass-button text-indigo-400 font-semibold py-3.5 sm:py-4 rounded-xl text-lg shadow-md bg-indigo-950/40 hover:bg-indigo-900/50">×</button>
+
+                <button onclick="appendNumber('4')" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">4</button>
+                <button onclick="appendNumber('5')" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">5</button>
+                <button onclick="appendNumber('6')" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">6</button>
+                <button onclick="appendOperation('-')" class="glass-button text-indigo-400 font-semibold py-3.5 sm:py-4 rounded-xl text-lg shadow-md bg-indigo-950/40 hover:bg-indigo-900/50">-</button>
+
+                <button onclick="appendNumber('1')" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">1</button>
+                <button onclick="appendNumber('2')" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">2</button>
+                <button onclick="appendNumber('3')" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">3</button>
+                <button onclick="appendOperation('+')" class="glass-button text-indigo-400 font-semibold py-3.5 sm:py-4 rounded-xl text-lg shadow-md bg-indigo-950/40 hover:bg-indigo-900/50">+</button>
+
+                <button onclick="toggleSign()" class="glass-button text-slate-300 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">±</button>
+                <button onclick="appendNumber('0')" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">0</button>
+                <button onclick="appendDot()" class="glass-button text-slate-200 font-medium py-3.5 sm:py-4 rounded-xl text-lg shadow-md">,</button>
+                <button onclick="compute()" class="bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-semibold py-3.5 sm:py-4 rounded-xl text-lg shadow-lg shadow-indigo-600/30 transition transform active:scale-95">=</button>
+            </div>
+        </div>
+
+        <!-- Verlauf (History) Modul -->
+        <div id="history-panel" class="glass-panel rounded-3xl p-5 sm:p-6 shadow-2xl w-full max-w-md lg:w-80 flex flex-col h-[400px] lg:h-auto hidden lg:flex transition-all duration-300">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                <h3 class="font-semibold text-slate-200 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Verlauf
+                </h3>
+                <button onclick="clearHistory()" class="text-xs text-slate-400 hover:text-rose-400 transition">Verlauf löschen</button>
+            </div>
+            
+            <div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1">
+                <div id="empty-history" class="text-slate-500 text-sm text-center py-10">Keine Berechnungen vorhanden</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Customizer Modal (Logo Upload & Icon Auswahl) -->
+    <div id="customizer-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-3xl p-6 max-w-md w-full border border-slate-700 shadow-2xl text-left flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    App-Icon & Logo anpassen
+                </h3>
+                <button onclick="toggleCustomizerModal()" class="text-slate-400 hover:text-white p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- Vorschau -->
+            <div class="flex items-center gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+                <div id="modal-preview-icon" class="w-16 h-16 rounded-2xl overflow-hidden bg-indigo-600/30 border border-white/20 flex items-center justify-center shadow-lg shrink-0">
+                    <!-- Preview Image -->
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-white">App-Icon Vorschau</h4>
+                    <p class="text-xs text-slate-400 mt-1">Dieses Icon wird auf deinem Smartphone-Startbildschirm und in der App oben angezeigt.</p>
+                </div>
+            </div>
+
+            <!-- Eigenes Bild hochladen -->
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-slate-300 font-semibold mb-2">Eigenes Logo hochladen</label>
+                <label class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl cursor-pointer bg-slate-900/40 hover:bg-slate-900/70 transition">
+                    <div class="flex flex-col items-center justify-center pt-3 pb-3">
+                        <svg class="w-7 h-7 text-indigo-400 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p class="text-xs text-slate-300 font-medium">Bild auswählen (PNG, JPG, SVG)</p>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Empfohlen: Quadratisch (z.B. 512x512)</p>
+                    </div>
+                    <input type="file" id="logo-file-input" accept="image/*" class="hidden" onchange="handleLogoUpload(event)" />
+                </label>
+            </div>
+
+            <!-- Vordefinierte Themes -->
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-slate-300 font-semibold mb-2">Oder vorgefertigtes Icon wählen</label>
+                <div class="grid grid-cols-4 gap-2.5">
+                    <button onclick="selectPresetIcon('default')" class="flex flex-col items-center p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-indigo-500 transition group">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-pink-600 flex items-center justify-center text-white font-bold text-xs shadow-md mb-1">÷=</div>
+                        <span class="text-[10px] text-slate-400 group-hover:text-white">Default</span>
+                    </button>
+                    <button onclick="selectPresetIcon('neon')" class="flex flex-col items-center p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-cyan-500 transition group">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-md mb-1">∑</div>
+                        <span class="text-[10px] text-slate-400 group-hover:text-white">Neon</span>
+                    </button>
+                    <button onclick="selectPresetIcon('amber')" class="flex flex-col items-center p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-amber-500 transition group">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-rose-600 flex items-center justify-center text-white font-bold text-xs shadow-md mb-1">%</div>
+                        <span class="text-[10px] text-slate-400 group-hover:text-white">Amber</span>
+                    </button>
+                    <button onclick="selectPresetIcon('minimal')" class="flex flex-col items-center p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-emerald-500 transition group">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white font-bold text-xs shadow-md mb-1">π</div>
+                        <span class="text-[10px] text-slate-400 group-hover:text-white">Minimal</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- App Titel anpassen -->
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-slate-300 font-semibold mb-1.5">App-Name auf Home-Bildschirm</label>
+                <input type="text" id="app-title-input" value="Rechner" maxlength="15" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="updateAppTitle(this.value)">
+            </div>
+
+            <button onclick="toggleCustomizerModal()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl transition shadow-lg shadow-indigo-600/30 text-sm mt-1">Speichern & Schließen</button>
+        </div>
+    </div>
+
+    <!-- Eigener Modal-Dialog (Alert Ersatz) -->
+    <div id="custom-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-2xl p-6 max-w-sm w-full border border-slate-700 shadow-2xl text-center">
+            <h3 id="modal-title" class="text-lg font-bold text-rose-400 mb-2">Hinweis</h3>
+            <p id="modal-message" class="text-slate-300 text-sm mb-5">Nachrichtentext</p>
+            <button onclick="closeModal()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl transition shadow-lg shadow-indigo-600/30">OK</button>
+        </div>
+    </div>
+
+    <!-- PWA & Taschenrechner Skripte -->
+    <script>
+        /* =======================================================
+           1. LOGO & ICON MANAGEMENT SYSTEM (Dynamic Canvas & Base64)
+           ======================================================= */
+        let currentIconDataURL = localStorage.getItem('custom_pwa_icon') || null;
+        let currentAppTitle = localStorage.getItem('custom_pwa_title') || 'Rechner';
+
+        // Generiert ein Standard-Icon auf Canvas
+        function generateCanvasIcon(preset = 'default', size = 512) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            let gradient;
+            let symbol = '÷=';
+
+            switch (preset) {
+                case 'neon':
+                    gradient = ctx.createLinearGradient(0, 0, size, size);
+                    gradient.addColorStop(0, '#06b6d4');
+                    gradient.addColorStop(1, '#2563eb');
+                    symbol = '∑';
+                    break;
+                case 'amber':
+                    gradient = ctx.createLinearGradient(0, 0, size, size);
+                    gradient.addColorStop(0, '#f59e0b');
+                    gradient.addColorStop(1, '#e11d48');
+                    symbol = '%';
+                    break;
+                case 'minimal':
+                    gradient = ctx.createLinearGradient(0, 0, size, size);
+                    gradient.addColorStop(0, '#10b981');
+                    gradient.addColorStop(1, '#0f766e');
+                    symbol = 'π';
+                    break;
+                default:
+                    gradient = ctx.createLinearGradient(0, 0, size, size);
+                    gradient.addColorStop(0, '#4f46e5');
+                    gradient.addColorStop(1, '#db2777');
+                    symbol = '÷=';
+                    break;
+            }
+
+            // Hintergrund mit abgerundeten Ecken
+            ctx.fillStyle = gradient;
+            const radius = size * 0.22;
+            ctx.beginPath();
+            ctx.moveTo(radius, 0);
+            ctx.lineTo(size - radius, 0);
+            ctx.quadraticCurveTo(size, 0, size, radius);
+            ctx.lineTo(size, size - radius);
+            ctx.quadraticCurveTo(size, size, size - radius, size);
+            ctx.lineTo(radius, size);
+            ctx.quadraticCurveTo(0, size, 0, size - radius);
+            ctx.lineTo(0, radius);
+            ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Text / Symbol
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${Math.round(size * 0.42)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(symbol, size / 2, size / 2);
+
+            return canvas.toDataURL('image/png');
+        }
+
+        // Aktualisiert App Icons im DOM & PWA Manifest
+        function applyIcon(dataUrl) {
+            currentIconDataURL = dataUrl;
+            localStorage.setItem('custom_pwa_icon', dataUrl);
+
+            // 1. Header & Modal Previews aktualisieren
+            document.getElementById('app-logo-container').innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover rounded-xl" alt="App Logo">`;
+            document.getElementById('modal-preview-icon').innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover rounded-2xl" alt="Preview Logo">`;
+
+            // 2. Apple Touch Icon aktualisieren
+            document.getElementById('apple-touch-icon').href = dataUrl;
+
+            // 3. Dynamic Web App Manifest neu registrieren
+            registerDynamicManifest();
+        }
+
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = function () {
+                    // Auf quadratisches Canvas rendern, damit es perfekt als PWA-Icon passt
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512;
+                    canvas.height = 512;
+                    const ctx = canvas.getContext('2d');
+
+                    // Abgerundete Ecken zeichnen
+                    const radius = 512 * 0.22;
+                    ctx.beginPath();
+                    ctx.moveTo(radius, 0);
+                    ctx.lineTo(512 - radius, 0);
+                    ctx.quadraticCurveTo(512, 0, 512, radius);
+                    ctx.lineTo(512, 512 - radius);
+                    ctx.quadraticCurveTo(512, 512, 512 - radius, 512);
+                    ctx.lineTo(radius, 512);
+                    ctx.quadraticCurveTo(0, 512, 0, 512 - radius);
+                    ctx.lineTo(0, radius);
+                    ctx.quadraticCurveTo(0, 0, radius, 0);
+                    ctx.closePath();
+                    ctx.clip();
+
+                    // Bild zentriert und skaliert einzeichnen (cover-fit)
+                    const aspect = img.width / img.height;
+                    let drawWidth = 512;
+                    let drawHeight = 512;
+                    let offsetX = 0;
+                    let offsetY = 0;
+
+                    if (aspect > 1) {
+                        drawWidth = 512 * aspect;
+                        offsetX = -(drawWidth - 512) / 2;
+                    } else {
+                        drawHeight = 512 / aspect;
+                        offsetY = -(drawHeight - 512) / 2;
+                    }
+
+                    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+                    const finalDataUrl = canvas.toDataURL('image/png');
+                    applyIcon(finalDataUrl);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function selectPresetIcon(preset) {
+            const iconUrl = generateCanvasIcon(preset, 512);
+            applyIcon(iconUrl);
+        }
+
+        function updateAppTitle(title) {
+            currentAppTitle = title || 'Rechner';
+            document.getElementById('app-title-display').innerText = currentAppTitle;
+            localStorage.setItem('custom_pwa_title', currentAppTitle);
+            registerDynamicManifest();
+        }
+
+        function toggleCustomizerModal() {
+            document.getElementById('customizer-modal').classList.toggle('hidden');
+        }
+
+        /* =======================================================
+           2. DYNAMISCHES PWA WEB MANIFEST GENERATION
+           ======================================================= */
+        let manifestElement = null;
+
+        function registerDynamicManifest() {
+            if (!currentIconDataURL) {
+                currentIconDataURL = generateCanvasIcon('default', 512);
+            }
+
+            const manifestContent = {
+                name: currentAppTitle,
+                short_name: currentAppTitle,
+                description: "Moderne, offline-fähige Taschenrechner PWA",
+                start_url: window.location.href,
+                display: "standalone",
+                background_color: "#0f172a",
+                theme_color: "#0f172a",
+                orientation: "portrait",
+                icons: [
+                    { src: currentIconDataURL, sizes: "192x192", type: "image/png", purpose: "any maskable" },
+                    { src: currentIconDataURL, sizes: "512x512", type: "image/png", purpose: "any maskable" }
+                ]
+            };
+
+            const manifestBlob = new Blob([JSON.stringify(manifestContent)], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(manifestBlob);
+
+            if (manifestElement) {
+                manifestElement.remove();
+            }
+
+            manifestElement = document.createElement('link');
+            manifestElement.rel = 'manifest';
+            manifestElement.href = manifestURL;
+            document.head.appendChild(manifestElement);
+        }
+
+        /* =======================================================
+           3. INLINE SERVICE WORKER (Offline-Fähigkeit)
+           ======================================================= */
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'rechner-pwa-v2';
+                self.addEventListener('install', (e) => {
+                    self.skipWaiting();
+                });
+                self.addEventListener('activate', (e) => {
+                    e.waitUntil(clients.claim());
+                });
+                self.addEventListener('fetch', (e) => {
+                    e.respondWith(
+                        fetch(e.request).catch(() => caches.match(e.request))
+                    );
+                });
+            `;
+            const swBlob = new Blob([swCode], { type: 'text/javascript' });
+            const swURL = URL.createObjectURL(swBlob);
+            
+            navigator.serviceWorker.register(swURL).catch(err => {
+                console.warn('ServiceWorker Hinweis:', err);
+            });
+        }
+
+        /* =======================================================
+           4. PWA INSTALL PROMPT PROZESS
+           ======================================================= */
+        let deferredPrompt;
+        const pwaInstallBtn = document.getElementById('pwa-install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            pwaInstallBtn.classList.remove('hidden');
+        });
+
+        pwaInstallBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                pwaInstallBtn.classList.add('hidden');
+            }
+            deferredPrompt = null;
+        });
+
+        window.addEventListener('appinstalled', () => {
+            pwaInstallBtn.classList.add('hidden');
+            deferredPrompt = null;
+        });
+
+        /* =======================================================
+           5. TASCHENRECHNER CORE LOGIK
+           ======================================================= */
+        let currentOperand = '0';
+        let previousOperand = '';
+        let operation = null;
+        let resetScreen = false;
+        let history = [];
+
+        const currentOperandElement = document.getElementById('current-operand');
+        const previousOperandElement = document.getElementById('previous-operand');
+        const historyListElement = document.getElementById('history-list');
+        const historyPanel = document.getElementById('history-panel');
+        const historyToggle = document.getElementById('history-toggle');
+
+        historyToggle.addEventListener('click', () => {
+            historyPanel.classList.toggle('hidden');
+        });
+
+        function showAlert(title, message) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        function appendNumber(number) {
+            if (currentOperand === '0' || resetScreen) {
+                currentOperand = number;
+                resetScreen = false;
+            } else {
+                if (currentOperand.length < 15) {
+                    currentOperand += number;
+                }
+            }
+            updateDisplay();
+        }
+
+        function appendDot() {
+            if (resetScreen) {
+                currentOperand = '0.';
+                resetScreen = false;
+                updateDisplay();
+                return;
+            }
+            if (!currentOperand.includes('.')) {
+                currentOperand += '.';
+                updateDisplay();
+            }
+        }
+
+        function appendOperation(op) {
+            if (operation !== null && !resetScreen) {
+                compute();
+            }
+            previousOperand = currentOperand;
+            operation = op;
+            resetScreen = true;
+            updateDisplay();
+        }
+
+        function toggleSign() {
+            if (currentOperand === '0') return;
+            if (currentOperand.startsWith('-')) {
+                currentOperand = currentOperand.substring(1);
+            } else {
+                currentOperand = '-' + currentOperand;
+            }
+            updateDisplay();
+        }
+
+        function appendPercent() {
+            const current = parseFloat(currentOperand);
+            if (isNaN(current)) return;
+            currentOperand = (current / 100).toString();
+            updateDisplay();
+        }
+
+        function compute() {
+            if (operation === null || resetScreen) return;
+            
+            let computation;
+            const prev = parseFloat(previousOperand);
+            const current = parseFloat(currentOperand);
+
+            if (isNaN(prev) || isNaN(current)) return;
+
+            let opSymbol = operation;
+
+            switch (operation) {
+                case '+': computation = prev + current; break;
+                case '-': computation = prev - current; break;
+                case '*': 
+                    computation = prev * current; 
+                    opSymbol = '×'; 
+                    break;
+                case '/':
+                    if (current === 0) {
+                        showAlert('Fehler', 'Division durch Null ist nicht erlaubt!');
+                        clearAll();
+                        return;
+                    }
+                    computation = prev / current;
+                    opSymbol = '÷';
+                    break;
+                default: return;
+            }
+
+            computation = Math.round(computation * 100000000) / 100000000;
+            const calculationString = `${formatNumber(prev)} ${opSymbol} ${formatNumber(current)}`;
+            
+            addToHistory(calculationString, computation);
+
+            currentOperand = computation.toString();
+            operation = null;
+            previousOperand = '';
+            resetScreen = true;
+            updateDisplay();
+        }
+
+        function formatNumber(number) {
+            const stringNumber = number.toString();
+            const parts = stringNumber.split('.');
+            const integerDigits = parseFloat(parts[0]);
+            let integerDisplay = '';
+            
+            if (!isNaN(integerDigits)) {
+                integerDisplay = integerDigits.toLocaleString('de-DE');
+            }
+            
+            if (parts.length > 1) {
+                return `${integerDisplay},${parts[1]}`;
+            } else {
+                return integerDisplay;
+            }
+        }
+
+        function updateDisplay() {
+            currentOperandElement.innerText = currentOperand.replace('.', ',');
+            if (operation !== null) {
+                let opDisplay = operation;
+                if (operation === '*') opDisplay = '×';
+                if (operation === '/') opDisplay = '÷';
+                previousOperandElement.innerText = `${formatNumber(previousOperand)} ${opDisplay}`;
+            } else {
+                previousOperandElement.innerText = '';
+            }
+        }
+
+        function clearAll() {
+            currentOperand = '0';
+            previousOperand = '';
+            operation = null;
+            resetScreen = false;
+            updateDisplay();
+        }
+
+        function deleteDigit() {
+            if (resetScreen) return;
+            if (currentOperand.length === 1 || (currentOperand.length === 2 && currentOperand.startsWith('-'))) {
+                currentOperand = '0';
+            } else {
+                currentOperand = currentOperand.slice(0, -1);
+            }
+            updateDisplay();
+        }
+
+        function addToHistory(expression, result) {
+            history.unshift({ expression, result: formatNumber(result) });
+            if (history.length > 20) history.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            if (history.length === 0) {
+                historyListElement.innerHTML = '<div id="empty-history" class="text-slate-500 text-sm text-center py-10">Keine Berechnungen vorhanden</div>';
+                return;
+            }
+
+            historyListElement.innerHTML = '';
+            history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'bg-slate-900/40 p-3 rounded-xl border border-slate-800/60 flex flex-col items-end';
+                div.innerHTML = `
+                    <span class="text-xs text-slate-400">${item.expression}</span>
+                    <span class="text-base font-semibold text-slate-200">= ${item.result}</span>
+                `;
+                historyListElement.appendChild(div);
+            });
+        }
+
+        function clearHistory() {
+            history = [];
+            renderHistory();
+        }
+
+        // Tastatursteuerung
+        window.addEventListener('keydown', e => {
+            if ((e.key >= '0' && e.key <= '9')) {
+                appendNumber(e.key);
+            } else if (e.key === '.' || e.key === ',') {
+                appendDot();
+            } else if (e.key === '+' || e.key === '-') {
+                appendOperation(e.key);
+            } else if (e.key === '*') {
+                appendOperation('*');
+            } else if (e.key === '/') {
+                e.preventDefault();
+                appendOperation('/');
+            } else if (e.key === 'Enter' || e.key === '=') {
+                compute();
+            } else if (e.key === 'Backspace') {
+                deleteDigit();
+            } else if (e.key === 'Escape') {
+                clearAll();
+            } else if (e.key === '%') {
+                appendPercent();
+            }
+        });
+
+        // Initialisierung beim Start
+        window.onload = function() {
+            document.getElementById('app-title-input').value = currentAppTitle;
+            document.getElementById('app-title-display').innerText = currentAppTitle;
+            
+            if (currentIconDataURL) {
+                applyIcon(currentIconDataURL);
+            } else {
+                selectPresetIcon('default');
+            }
+        };
+    </script>
+</body>
+</html>
